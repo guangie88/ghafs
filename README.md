@@ -1,6 +1,6 @@
 # `ghafs`
 
-![](https://github.com/guangie88/ghafs/workflows/ci/badge.svg)
+![](https://github.com/guangie88/ghafs/workflows/CI/badge.svg)
 
 Experimental GitHub Release Assets as FUSE filesystem mount.
 
