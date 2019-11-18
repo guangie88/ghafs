@@ -16,4 +16,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
     - name: Build executable
-      run: CGO_ENABLED=0 go build -v ./...
+      run: go build -v ./...
+      env:
+        CGO_ENABLED: "0"
