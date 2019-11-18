@@ -19,41 +19,6 @@ func usage() {
 	flag.PrintDefaults()
 }
 
-type ReleaseAssets struct {
-	release *github.RepositoryRelease
-	assets  []*github.ReleaseAsset
-}
-
-type ReleaseAssetsMap map[string]ReleaseAssets
-
-func rasToDirents(rasm *ReleaseAssetsMap) []fuse.Dirent {
-	dirents := make([]fuse.Dirent, len(*rasm))
-
-	i := 0
-	for tag, ras := range *rasm {
-		dirents[i] = fuse.Dirent{
-			Inode: uint64(ras.release.GetID()),
-			Name:  tag,
-			Type:  fuse.DT_Dir,
-		}
-		i++
-	}
-	return dirents
-}
-
-func assetsToDirents(assets []*github.ReleaseAsset) []fuse.Dirent {
-	dirents := make([]fuse.Dirent, len(assets))
-
-	for i, asset := range assets {
-		dirents[i] = fuse.Dirent{
-			Inode: uint64(asset.GetID()),
-			Name:  asset.GetName(),
-			Type:  fuse.DT_File,
-		}
-	}
-	return dirents
-}
-
 func main() {
 	flag.Usage = usage
 	flag.Parse()
@@ -116,6 +81,41 @@ func main() {
 	if err := c.MountError; err != nil {
 		log.Fatal(err)
 	}
+}
+
+type ReleaseAssets struct {
+	release *github.RepositoryRelease
+	assets  []*github.ReleaseAsset
+}
+
+type ReleaseAssetsMap map[string]ReleaseAssets
+
+func rasToDirents(rasm *ReleaseAssetsMap) []fuse.Dirent {
+	dirents := make([]fuse.Dirent, len(*rasm))
+
+	i := 0
+	for tag, ras := range *rasm {
+		dirents[i] = fuse.Dirent{
+			Inode: uint64(ras.release.GetID()),
+			Name:  tag,
+			Type:  fuse.DT_Dir,
+		}
+		i++
+	}
+	return dirents
+}
+
+func assetsToDirents(assets []*github.ReleaseAsset) []fuse.Dirent {
+	dirents := make([]fuse.Dirent, len(assets))
+
+	for i, asset := range assets {
+		dirents[i] = fuse.Dirent{
+			Inode: uint64(asset.GetID()),
+			Name:  asset.GetName(),
+			Type:  fuse.DT_File,
+		}
+	}
+	return dirents
 }
 
 // GhaFS implements the GitHub Release Assets file system.
