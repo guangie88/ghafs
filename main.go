@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 
 	"bazil.org/fuse"
@@ -186,10 +188,26 @@ type File struct {
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = uint64(f.ra.GetID())
 	a.Mode = 0444
-	a.Size = uint64(len(f.ra.GetURL()))
+	a.Size = uint64(f.ra.GetSize())
 	return nil
 }
 
 func (f File) ReadAll(ctx context.Context) ([]byte, error) {
-	return []byte(f.ra.GetURL()), nil
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", f.ra.GetURL(), nil)
+	req.Header.Add("Accept", "application/octet-stream")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Asset URL: %v, Content-Length: %v", f.ra.GetURL(), resp.ContentLength)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return body, nil
 }
