@@ -12,10 +12,11 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/google/go-github/v28/github"
+	"golang.org/x/oauth2"
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s <mountpoint> <owner> <repo>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s <mountpoint> <owner> <repo> [access-token]\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -23,7 +24,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	if flag.NArg() != 3 {
+	if flag.NArg() < 3 || flag.NArg() > 4 {
 		usage()
 		os.Exit(1)
 	}
@@ -31,10 +32,20 @@ func main() {
 	mountpoint := flag.Arg(0)
 	owner := flag.Arg(1)
 	repo := flag.Arg(2)
+	oauth2Token := flag.Arg(3)
 
 	// GitHub Set-up
 	ctx := context.Background()
-	client := github.NewClient(nil)
+
+	var tc *http.Client
+	if oauth2Token != "" {
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: oauth2Token},
+		)
+		tc = oauth2.NewClient(ctx, ts)
+	}
+
+	client := github.NewClient(tc)
 	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, nil)
 
 	if err != nil {
@@ -71,7 +82,13 @@ func main() {
 
 	defer c.Close()
 
-	err = fs.Serve(c, newGhaFS(&rasm))
+	// Prepare to pass around the token via reference
+	var token *string
+	if oauth2Token != "" {
+		token = &oauth2Token
+	}
+
+	err = fs.Serve(c, NewGhaFS(&rasm, token))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,20 +137,22 @@ func assetsToDirents(assets []*github.ReleaseAsset) []fuse.Dirent {
 
 // GhaFS implements the GitHub Release Assets file system.
 type GhaFS struct {
-	rasm *ReleaseAssetsMap
+	rasm  *ReleaseAssetsMap
+	token *string
 }
 
-func newGhaFS(rasm *ReleaseAssetsMap) GhaFS {
-	return GhaFS{rasm}
+func NewGhaFS(rasm *ReleaseAssetsMap, token *string) GhaFS {
+	return GhaFS{rasm, token}
 }
 
 func (g GhaFS) Root() (fs.Node, error) {
-	return RootDir{rasm: g.rasm}, nil
+	return RootDir{rasm: g.rasm, token: g.token}, nil
 }
 
 // RootDir implements both Node and Handle for the root directory.
 type RootDir struct {
-	rasm *ReleaseAssetsMap
+	rasm  *ReleaseAssetsMap
+	token *string
 }
 
 func (RootDir) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -145,7 +164,7 @@ func (RootDir) Attr(ctx context.Context, a *fuse.Attr) error {
 func (r RootDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	for tag, ras := range *r.rasm {
 		if name == tag {
-			return TagDir{ras: &ras}, nil
+			return TagDir{ras: &ras, token: r.token}, nil
 		}
 	}
 
@@ -158,7 +177,8 @@ func (r RootDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 // TagDir implements both Node and Handle for the root directory.
 type TagDir struct {
-	ras *ReleaseAssets
+	ras   *ReleaseAssets
+	token *string
 }
 
 func (t TagDir) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -170,7 +190,7 @@ func (t TagDir) Attr(ctx context.Context, a *fuse.Attr) error {
 func (t TagDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	for _, asset := range t.ras.assets {
 		if name == asset.GetName() {
-			return File{ra: asset}, nil
+			return File{ra: asset, token: t.token}, nil
 		}
 	}
 	return nil, fuse.ENOENT
@@ -182,7 +202,8 @@ func (t TagDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 // File implements both Node and Handle for the hello file.
 type File struct {
-	ra *github.ReleaseAsset
+	ra    *github.ReleaseAsset
+	token *string
 }
 
 func (f File) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -196,6 +217,10 @@ func (f File) ReadAll(ctx context.Context) ([]byte, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", f.ra.GetURL(), nil)
 	req.Header.Add("Accept", "application/octet-stream")
+
+	if f.token != nil {
+		req.Header.Add("Authorization", "token "+*f.token)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
