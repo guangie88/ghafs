@@ -17,24 +17,38 @@ jobs:
           platform: ubuntu-latest
           goos: linux
           goarch: amd64
-        # - go: "1.12.x"
-        #   platform: macos-latest
-        #   goos: darwin
-        #   goarch: amd64
+        - go: "1.12.x"
+          platform: macos-latest
+          goos: darwin
+          goarch: amd64
         - go: "1.13.x"
           platform: ubuntu-latest
           goos: linux
           goarch: amd64
-        # - go: "1.13.x"
-        #   platform: macos-latest
-        #   goos: darwin
-        #   goarch: amd64
+        - go: "1.13.x"
+          platform: macos-latest
+          goos: darwin
+          goarch: amd64
     runs-on: "${{ matrix.version.platform }}"
     steps:
     - name: Install Go
       uses: actions/setup-go@v1
       with:
         go-version: "${{ matrix.version.go }}"
+    - name: Install ghr for Linux
+      run: |-
+        GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
+        wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.tar.gz"
+        tar xvf "${GHR_NAME}.tar.gz" "${GHR_NAME}/ghr" --strip=1
+        mv ghr /usr/local/bin/
+      if: ${{ matrix.version.goos }} == 'linux'
+    - name: Install ghr for MacOS
+      run: |-
+        GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
+        wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.zip"
+        unzip -p "${GHR_NAME}.zip" "${GHR_NAME}/ghr" > ghr
+        mv ghr /usr/local/bin/
+      if: ${{ matrix.version.goos }} == 'darwin'
     - name: Checkout code
       uses: actions/checkout@v1
     - name: Build executable
@@ -69,11 +83,18 @@ jobs:
     - name: Rename release asset
       run: mv ghafs "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
     - name: Upload release asset
-      uses: meeDamian/github-release@1.0
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        tag: experimental
-        prerelease: true
-        gzip: false
-        allow_override: true
-        files: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
+      run: |-
+        REPO_OWNER="$(echo "${{ github.repository }}" | cut -d '/' -f1)"
+        REPO_NAME="$(echo "${{ github.repository }}" | cut -d '/' -f2)"
+        ghr -t ${{ secrets.GITHUB_TOKEN }} -u "${REPO_OWNER}" -r "${REPO_NAME}" \
+          -c ${{ github.sha }} -replace experimental \
+          "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
+    # - name: Upload release asset
+    #   uses: meeDamian/github-release@1.0
+    #   with:
+    #     token: ${{ secrets.GITHUB_TOKEN }}
+    #     tag: experimental
+    #     prerelease: true
+    #     gzip: false
+    #     allow_override: true
+    #     files: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
