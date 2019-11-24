@@ -41,14 +41,14 @@ jobs:
         wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.tar.gz"
         tar xvf "${GHR_NAME}.tar.gz" "${GHR_NAME}/ghr" --strip=1
         mv ghr /usr/local/bin/
-      if: ${{ matrix.version.goos }} == 'linux'
+      if: matrix.version.goos == 'linux'
     - name: Install ghr for MacOS
       run: |-
         GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
         wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.zip"
         unzip -p "${GHR_NAME}.zip" "${GHR_NAME}/ghr" > ghr
         mv ghr /usr/local/bin/
-      if: ${{ matrix.version.goos }} == 'darwin'
+      if: matrix.version.goos == 'darwin'
     - name: Checkout code
       uses: actions/checkout@v1
     - name: Build executable
