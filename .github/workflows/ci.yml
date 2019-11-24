@@ -89,6 +89,7 @@ jobs:
         ghr -t ${{ secrets.GITHUB_TOKEN }} -u "${REPO_OWNER}" -r "${REPO_NAME}" \
           -c ${{ github.sha }} -replace experimental \
           "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
+      if: matrix.version.go == '1.13.x'
     # - name: Upload release asset
     #   uses: meeDamian/github-release@1.0
     #   with:
