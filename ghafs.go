@@ -9,7 +9,9 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/google/go-github/v28/github"
+	"golang.org/x/oauth2"
 )
 
 type ReleaseAssets struct {
@@ -47,14 +49,60 @@ func assetsToDirents(assets []*github.ReleaseAsset) []fuse.Dirent {
 	return dirents
 }
 
+type Update struct{}
+
 // ghaFS implements the GitHub Release Assets file system.
 type ghaFS struct {
+	owner string
+	repo  string
+	token string
 	rasm  *ReleaseAssetsMap
-	token *string
 }
 
-func NewGhaFS(rasm *ReleaseAssetsMap, token *string) ghaFS {
-	return ghaFS{rasm, token}
+func (state *ghaFS) Receive(actx actor.Context) {
+	switch msg := actx.Message().(type) {
+
+	case Update:
+		// GitHub Set-up
+		ctx := context.Background()
+
+		var tc *http.Client
+
+		if state.token != "" {
+			ts := oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: state.token},
+			)
+			tc = oauth2.NewClient(ctx, ts)
+		}
+
+		client := github.NewClient(tc)
+		releases, _, err := client.Repositories.ListReleases(ctx, state.owner, state.repo, nil)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rasm := make(ReleaseAssetsMap)
+
+		for _, release := range releases {
+			assets, _, err := client.Repositories.ListReleaseAssets(ctx, state.owner, state.repo, release.GetID(), nil)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			rasm[release.GetTagName()] = ReleaseAssets{
+				release,
+				assets,
+			}
+		}
+
+		state.rasm = &rasm
+	}
+}
+
+func NewGhaFS(owner string, repo string, token string) ghaFS {
+	return ghaFS{owner, repo, token, nil}
 }
 
 func (g ghaFS) Root() (fs.Node, error) {

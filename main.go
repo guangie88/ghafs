@@ -1,17 +1,14 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/google/go-github/v28/github"
-	"golang.org/x/oauth2"
+	"github.com/AsynkronIT/protoactor-go/actor"
 )
 
 func usage() {
@@ -33,38 +30,9 @@ func main() {
 	repo := flag.Arg(2)
 	oauth2Token := flag.Arg(3)
 
-	// GitHub Set-up
-	ctx := context.Background()
-
-	var tc *http.Client
-	if oauth2Token != "" {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: oauth2Token},
-		)
-		tc = oauth2.NewClient(ctx, ts)
-	}
-
-	client := github.NewClient(tc)
-	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, nil)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	rasm := make(ReleaseAssetsMap)
-
-	for _, release := range releases {
-		assets, _, err := client.Repositories.ListReleaseAssets(ctx, owner, repo, release.GetID(), nil)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		rasm[release.GetTagName()] = ReleaseAssets{
-			release,
-			assets,
-		}
-	}
+	context := actor.EmptyRootContext
+	props := actor.PropsFromProducer(func() actor.Actor { return &GitHubActor{} })
+	pid := context.Spawn(props)
 
 	// FUSE Set-up
 	c, err := fuse.Mount(
@@ -82,12 +50,7 @@ func main() {
 	defer c.Close()
 
 	// Prepare to pass around the token via reference
-	var token *string
-	if oauth2Token != "" {
-		token = &oauth2Token
-	}
-
-	err = fs.Serve(c, NewGhaFS(&rasm, token))
+	err = fs.Serve(c, NewGhaFS(oauth2Token))
 	if err != nil {
 		log.Fatal(err)
 	}
