@@ -17,18 +17,18 @@ jobs:
           platform: ubuntu-latest
           goos: linux
           goarch: amd64
-        - go: "1.12.x"
-          platform: macos-latest
-          goos: darwin
-          goarch: amd64
+        # - go: "1.12.x"
+        #   platform: macos-latest
+        #   goos: darwin
+        #   goarch: amd64
         - go: "1.13.x"
           platform: ubuntu-latest
           goos: linux
           goarch: amd64
-        - go: "1.13.x"
-          platform: macos-latest
-          goos: darwin
-          goarch: amd64
+        # - go: "1.13.x"
+        #   platform: macos-latest
+        #   goos: darwin
+        #   goarch: amd64
     runs-on: "${{ matrix.version.platform }}"
     steps:
     - name: Install Go
