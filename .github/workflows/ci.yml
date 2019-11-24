@@ -47,6 +47,7 @@ jobs:
         GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
         wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.zip"
         unzip -p "${GHR_NAME}.zip" "${GHR_NAME}/ghr" > ghr
+        chmod +x ghr
         sudo mv ghr /usr/local/bin/
       if: matrix.version.goos == 'darwin'
     - name: Checkout code
