@@ -19,7 +19,7 @@ jobs:
           goarch: amd64
         - go: "1.12.x"
           platform: macos-latest
-          goos: linux
+          goos: darwin
           goarch: amd64
         - go: "1.13.x"
           platform: ubuntu-latest
@@ -27,7 +27,7 @@ jobs:
           goarch: amd64
         - go: "1.13.x"
           platform: macos-latest
-          goos: linux
+          goos: darwin
           goarch: amd64
     runs-on: "${{ matrix.version.platform }}"
     steps:
@@ -64,10 +64,10 @@ jobs:
     #     # upload_url: ${{ steps.create_release.outputs.upload_url }} 
     #     upload_url: https://uploads.github.com/repos/${{ github.repository }}/releases/1/assets
     #     asset_path: ./ghafs
-    #     asset_name: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.base_ref }}"
+    #     asset_name: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
     #     asset_content_type: application/octet-stream
     - name: Rename release asset
-      run: mv ghafs "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.base_ref }}"
+      run: mv ghafs "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
     - name: Upload release asset
       uses: meeDamian/github-release@1.0
       with:
@@ -76,4 +76,4 @@ jobs:
         prerelease: true
         gzip: false
         allow_override: true
-        files: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.base_ref }}"
+        files: "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${{ github.head_ref }}"
