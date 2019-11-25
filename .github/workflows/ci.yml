@@ -60,13 +60,13 @@ jobs:
         CGO_ENABLED: "0"
     - name: Rename release asset
       run: |-
-        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="${{ github.ref }}" || REF_ANNOTATION="${{ github.head_ref }}"
+        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF_ANNOTATION="${{ github.head_ref }}"
         mv ghafs "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${REF_ANNOTATION}"
     - name: Upload release asset
       run: |-
         REPO_OWNER="$(echo "${{ github.repository }}" | cut -d '/' -f1)"
         REPO_NAME="$(echo "${{ github.repository }}" | cut -d '/' -f2)"
-        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="${{ github.ref }}" || REF_ANNOTATION="${{ github.head_ref }}"
+        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF_ANNOTATION="${{ github.head_ref }}"
         ghr -t ${{ secrets.GITHUB_TOKEN }} -u "${REPO_OWNER}" -r "${REPO_NAME}" \
           -c ${{ github.sha }} -replace experimental \
           "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${REF_ANNOTATION}"
