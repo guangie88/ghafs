@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/alexflint/go-arg"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/google/go-github/v28/github"
@@ -26,6 +28,7 @@ func (args) Description() string {
 
 func main() {
 	var args args
+	arg.MustParse(&args)
 
 	// GitHub Set-up
 	ctx := context.Background()
