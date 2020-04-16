@@ -45,7 +45,7 @@ func main() {
 	}
 
 	client := github.NewClient(tc)
-	rasm, err := getReleaseAssets(ctx, client, owner, repo)
+	mgmt, err := makeReleaseAssetsMgmt(ctx, client, owner, repo)
 
 	if err != nil {
 		log.Fatal(err)
@@ -72,7 +72,7 @@ func main() {
 		token = &oauth2Token
 	}
 
-	err = fs.Serve(c, NewGhaFS(rasm, token))
+	err = fs.Serve(c, NewGhaFS(mgmt, token))
 	if err != nil {
 		log.Fatal(err)
 	}
