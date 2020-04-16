@@ -14,13 +14,13 @@ import (
 
 // ghaFS implements the GitHub Release Assets file system.
 type ghaFS struct {
-	rasm  *ReleaseAssetsMap
+	mgmt  *ReleaseAssetsMgmt
 	token *string
 }
 
 // root implements both Node and Handle for the root directory.
 type root struct {
-	rasm  *ReleaseAssetsMap
+	mgmt  *ReleaseAssetsMgmt
 	token *string
 }
 
@@ -30,12 +30,12 @@ type tagDir struct {
 	token *string
 }
 
-func NewGhaFS(rasm *ReleaseAssetsMap, token *string) ghaFS {
-	return ghaFS{rasm, token}
+func NewGhaFS(mgmt *ReleaseAssetsMgmt, token *string) ghaFS {
+	return ghaFS{mgmt, token}
 }
 
 func (g ghaFS) Root() (fs.Node, error) {
-	return root{rasm: g.rasm, token: g.token}, nil
+	return root{mgmt: g.mgmt, token: g.token}, nil
 }
 
 func (root) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -45,11 +45,17 @@ func (root) Attr(ctx context.Context, a *fuse.Attr) error {
 }
 
 func (r root) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	return rasToDirents(r.rasm), nil
+	rasm, err := r.mgmt.refresh()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return rasToDirents(rasm), nil
 }
 
 func (r root) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	for tag, ras := range *r.rasm {
+	for tag, ras := range *r.mgmt.getCurrent() {
 		if name == tag {
 			return tagDir{ras: &ras, token: r.token}, nil
 		}
