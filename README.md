@@ -1,6 +1,6 @@
 # `ghafs`
 
-![https://github.com/guangie88/ghafs/actions?query=workflow%3ACI](https://github.com/guangie88/ghafs/workflows/CI/badge.svg)
+[![CI Status](https://img.shields.io/github/workflow/status/guangie88/ghafs/ci/master?label=ci&logo=github&style=for-the-badge)](https://github.com/guangie88/ghafs/actions)
 
 Experimental GitHub Release Assets as FUSE filesystem mount.
 
