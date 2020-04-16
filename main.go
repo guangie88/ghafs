@@ -45,25 +45,10 @@ func main() {
 	}
 
 	client := github.NewClient(tc)
-	releases, _, err := client.Repositories.ListReleases(ctx, owner, repo, nil)
+	rasm, err := getReleaseAssets(ctx, client, owner, repo)
 
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	rasm := make(ReleaseAssetsMap)
-
-	for _, release := range releases {
-		assets, _, err := client.Repositories.ListReleaseAssets(ctx, owner, repo, release.GetID(), nil)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		rasm[release.GetTagName()] = ReleaseAssets{
-			release,
-			assets,
-		}
 	}
 
 	// FUSE Set-up
@@ -87,7 +72,7 @@ func main() {
 		token = &oauth2Token
 	}
 
-	err = fs.Serve(c, NewGhaFS(&rasm, token))
+	err = fs.Serve(c, NewGhaFS(rasm, token))
 	if err != nil {
 		log.Fatal(err)
 	}
