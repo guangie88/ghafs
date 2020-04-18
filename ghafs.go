@@ -30,7 +30,7 @@ type tagDir struct {
 	token *string
 }
 
-func NewGhaFS(mgmt *ReleaseAssetsMgmt, token *string) ghaFS {
+func newGhaFS(mgmt *ReleaseAssetsMgmt, token *string) ghaFS {
 	return ghaFS{mgmt, token}
 }
 

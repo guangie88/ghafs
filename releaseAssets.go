@@ -7,12 +7,25 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
+// ReleaseAssets contains the original release and the associated assets to the release
 type ReleaseAssets struct {
 	release *github.RepositoryRelease
 	assets  []*github.ReleaseAsset
 }
 
+// ReleaseAssetsMap contains the mapping of release tag to the release content
 type ReleaseAssetsMap map[string]ReleaseAssets
+
+// ReleaseAssetsMgmt contains the necessary inputs to generate the full release assets content
+type ReleaseAssetsMgmt struct {
+	ctx    context.Context
+	client *github.Client
+	owner  string
+	repo   string
+
+	current *ReleaseAssetsMap
+	m       sync.Mutex
+}
 
 func getReleaseAssets(ctx context.Context, client *github.Client, owner string, repo string) (*ReleaseAssetsMap, error) {
 	rasm := make(ReleaseAssetsMap)
@@ -37,16 +50,6 @@ func getReleaseAssets(ctx context.Context, client *github.Client, owner string, 
 	}
 
 	return &rasm, nil
-}
-
-type ReleaseAssetsMgmt struct {
-	ctx    context.Context
-	client *github.Client
-	owner  string
-	repo   string
-
-	current *ReleaseAssetsMap
-	m       sync.Mutex
 }
 
 func makeReleaseAssetsMgmt(ctx context.Context, client *github.Client, owner string, repo string) (*ReleaseAssetsMgmt, error) {
