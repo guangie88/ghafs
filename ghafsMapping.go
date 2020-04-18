@@ -5,13 +5,13 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
-func rasToDirents(rasm *ReleaseAssetsMap) []fuse.Dirent {
-	dirents := make([]fuse.Dirent, len(*rasm))
+func releasesToDirents(tagReleases map[string]*Release) []fuse.Dirent {
+	dirents := make([]fuse.Dirent, len(tagReleases))
 
 	i := 0
-	for tag, ras := range *rasm {
+	for tag, release := range tagReleases {
 		dirents[i] = fuse.Dirent{
-			Inode: uint64(ras.release.GetID()),
+			Inode: uint64(release.content.GetID()),
 			Name:  tag,
 			Type:  fuse.DT_Dir,
 		}

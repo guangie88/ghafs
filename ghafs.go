@@ -14,23 +14,29 @@ import (
 
 // ghaFS implements the GitHub Release Assets file system.
 type ghaFS struct {
-	mgmt  *ReleaseAssetsMgmt
+	mgmt  *ReleaseMgmt
 	token *string
 }
 
 // root implements both Node and Handle for the root directory.
 type root struct {
-	mgmt  *ReleaseAssetsMgmt
+	mgmt  *ReleaseMgmt
 	token *string
 }
 
 // tagDir implements both Node and Handle for the root directory.
 type tagDir struct {
-	ras   *ReleaseAssets
+	assets *AssetsWrap
+	token  *string
+}
+
+// assetFile implements both Node and Handle for the hello file.
+type assetFile struct {
+	asset *github.ReleaseAsset
 	token *string
 }
 
-func newGhaFS(mgmt *ReleaseAssetsMgmt, token *string) ghaFS {
+func newGhaFS(mgmt *ReleaseMgmt, token *string) ghaFS {
 	return ghaFS{mgmt, token}
 }
 
@@ -40,24 +46,30 @@ func (g ghaFS) Root() (fs.Node, error) {
 
 func (root) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = 1
-	a.Mode = os.ModeDir | 0555
+	a.Mode = os.ModeDir | 0775
 	return nil
 }
 
 func (r root) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	rasm, err := r.mgmt.refresh()
+	releases, err := r.mgmt.releases.refresh()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return rasToDirents(rasm), nil
+	return releasesToDirents(releases), nil
 }
 
 func (r root) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	for tag, ras := range *r.mgmt.getCurrent() {
+	releases, err := r.mgmt.releases.get()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for tag, release := range releases {
 		if name == tag {
-			return tagDir{ras: &ras, token: r.token}, nil
+			return tagDir{assets: release.assets, token: r.token}, nil
 		}
 	}
 
@@ -65,40 +77,46 @@ func (r root) Lookup(ctx context.Context, name string) (fs.Node, error) {
 }
 
 func (t tagDir) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = uint64(t.ras.release.GetID())
-	a.Mode = os.ModeDir | 0555
+	a.Inode = uint64(t.assets.release.GetID())
+	a.Mode = os.ModeDir | 0775
 	return nil
 }
 
 func (t tagDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	return assetsToDirents(t.ras.assets), nil
+	assets, err := t.assets.refresh()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return assetsToDirents(assets), nil
 }
 
 func (t tagDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	for _, asset := range t.ras.assets {
+	assets, err := t.assets.refresh()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, asset := range assets {
 		if name == asset.GetName() {
-			return assetFile{ra: asset, token: t.token}, nil
+			return assetFile{asset: asset, token: t.token}, nil
 		}
 	}
 	return nil, fuse.ENOENT
 }
 
-// assetFile implements both Node and Handle for the hello file.
-type assetFile struct {
-	ra    *github.ReleaseAsset
-	token *string
-}
-
 func (f assetFile) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = uint64(f.ra.GetID())
-	a.Mode = 0444
-	a.Size = uint64(f.ra.GetSize())
+	a.Inode = uint64(f.asset.GetID())
+	a.Mode = 0664
+	a.Size = uint64(f.asset.GetSize())
 	return nil
 }
 
 func (f assetFile) ReadAll(ctx context.Context) ([]byte, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", f.ra.GetURL(), nil)
+	req, err := http.NewRequest("GET", f.asset.GetURL(), nil)
 	req.Header.Add("Accept", "application/octet-stream")
 
 	if f.token != nil {
@@ -110,7 +128,7 @@ func (f assetFile) ReadAll(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Printf("Asset URL: %v, Content-Length: %v", f.ra.GetURL(), resp.ContentLength)
+	log.Printf("Asset URL: %v, Content-Length: %v", f.asset.GetURL(), resp.ContentLength)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
