@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [master]
   release:   # For testing, do a release on v0.0.0 (then delete it)
-    types: [created]
+    types: [published]
 
 jobs:
   build:
