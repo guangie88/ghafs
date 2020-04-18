@@ -2,11 +2,11 @@ name: ci
 
 on:
   push:
-    branches:
-    - master
+    branches: [master]
   pull_request:
-    branches:
-    - master
+    branches: [master]
+  release:   # For testing, do a release on v0.0.0 (then delete it)
+    types: [created]
 
 jobs:
   build:
@@ -29,27 +29,21 @@ jobs:
           platform: macos-latest
           goos: darwin
           goarch: amd64
+        - go: "1.14.x"
+          platform: ubuntu-latest
+          goos: linux
+          goarch: amd64
+        - go: "1.14.x"
+          platform: macos-latest
+          goos: darwin
+          goarch: amd64
+      fail-fast: true
     runs-on: "${{ matrix.version.platform }}"
     steps:
     - name: Install Go
       uses: actions/setup-go@v1
       with:
         go-version: "${{ matrix.version.go }}"
-    - name: Install ghr for Linux
-      run: |-
-        GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
-        wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.tar.gz"
-        tar xvf "${GHR_NAME}.tar.gz" "${GHR_NAME}/ghr" --strip=1
-        sudo mv ghr /usr/local/bin/
-      if: matrix.version.goos == 'linux'
-    - name: Install ghr for MacOS
-      run: |-
-        GHR_NAME="ghr_v0.13.0_${{ matrix.version.goos }}_${{ matrix.version.goarch }}"
-        wget "https://github.com/tcnksm/ghr/releases/download/v0.13.0/${GHR_NAME}.zip"
-        unzip -p "${GHR_NAME}.zip" "${GHR_NAME}/ghr" > ghr
-        chmod +x ghr
-        sudo mv ghr /usr/local/bin/
-      if: matrix.version.goos == 'darwin'
     - name: Checkout code
       uses: actions/checkout@v1
     - name: Build executable
@@ -58,16 +52,26 @@ jobs:
         GOOS: "${{ matrix.version.goos }}"
         GOARCH: "${{ matrix.version.goarch }}"
         CGO_ENABLED: "0"
-    - name: Rename release asset
+
+  release:
+    needs: ['build']
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64]
+      fail-fast: true
+    runs-on: ubuntu-latest
+    steps:
+    - name: Extract branch or tag value
       run: |-
-        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF_ANNOTATION="${{ github.head_ref }}"
-        mv ghafs "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${REF_ANNOTATION}"
-    - name: Upload release asset
-      run: |-
-        REPO_OWNER="$(echo "${{ github.repository }}" | cut -d '/' -f1)"
-        REPO_NAME="$(echo "${{ github.repository }}" | cut -d '/' -f2)"
-        [[ -z "${{ github.head_ref }}" ]] && REF_ANNOTATION="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF_ANNOTATION="${{ github.head_ref }}"
-        ghr -t ${{ secrets.GITHUB_TOKEN }} -u "${REPO_OWNER}" -r "${REPO_NAME}" \
-          -c ${{ github.sha }} -replace experimental \
-          "ghafs_${{ matrix.version.goos }}_${{ matrix.version.goarch }}_${REF_ANNOTATION}"
-      if: matrix.version.go == '1.13.x'
+        [[ -z "${{ github.head_ref }}" ]] && REF="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF="${{ github.head_ref }}"
+        echo "::set-env name=REF::${REF}"
+    - name: Upload releases
+      uses: wangyoucao577/go-release-action@v1.4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        goos: ${{ matrix.goos }}
+        goarch: ${{ matrix.goarch }}
+        goversion: "1.14"
+        binary_name: "ghafs_${{ env.REF }}"
+    if: github.event_name == 'release'
