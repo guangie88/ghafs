@@ -45,7 +45,7 @@ jobs:
       with:
         go-version: "${{ matrix.version.go }}"
     - name: Checkout code
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     - name: Build executable
       run: go build -v -ldflags="-s -w" ./...
       env:
@@ -54,7 +54,8 @@ jobs:
         CGO_ENABLED: "0"
 
   release:
-    needs: ['build']
+    needs: [build]
+    if: github.event_name == 'release'
     strategy:
       matrix:
         goos: [linux, darwin]
@@ -62,6 +63,8 @@ jobs:
       fail-fast: true
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: Extract branch or tag value
       run: |-
         [[ -z "${{ github.head_ref }}" ]] && REF="$(echo "${{ github.ref }}" | awk -F/ '{print $NF}')" || REF="${{ github.head_ref }}"
@@ -74,4 +77,3 @@ jobs:
         goarch: ${{ matrix.goarch }}
         goversion: "1.14"
         binary_name: "ghafs_${{ env.REF }}"
-    if: github.event_name == 'release'
