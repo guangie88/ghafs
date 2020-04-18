@@ -9,11 +9,11 @@ concept of FUSE.
 
 ## How to Use
 
-Assuming that `ghafs` executable has already been built, the run command looks
-like this:
+Assuming that `ghafs` executable has already been built, the actual usage help
+looks like this:
 
 ```bash
-./ghafs <mountpoint> <repo_owner> <repo_name>
+ghafs [--token TOKEN] [--allow-other] MOUNTPOINT OWNER REPO
 ```
 
 Note that you should not need `root` privileges for the above command as long as
@@ -26,7 +26,13 @@ mkdir -p /tmp/tera-cli
 ./ghafs /tmp/tera-cli guangie88 tera-cli
 ```
 
-You should then be able to traverse into `/tmp/tera-cli` to look at the various
+Note that you should try to provide the GitHub access token so that you have a
+much higher rate limit for GitHub API even for public repos. Also if you wish
+for another user (e.g. `root`) to see the mounted directory, you will need to
+specify the `--allow-other` flag.
+
+Assuming you have successfully mounted after following the above given command,
+you should then be able to traverse into `/tmp/tera-cli` to look at the various
 release tags and assets with another terminal / file browser.
 
 To unmount, currently one has to do the following:
