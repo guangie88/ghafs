@@ -42,11 +42,7 @@ func main() {
 	}
 
 	client := github.NewClient(tc)
-	mgmt, err := makeReleaseAssetsMgmt(ctx, client, args.Owner, args.Repo)
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	mgmt := makeReleaseMgmt(makeGhContext(ctx, client, args.Owner, args.Repo))
 
 	mountOptions := []fuse.MountOption{
 		fuse.FSName("ghafs"),
