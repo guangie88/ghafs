@@ -76,4 +76,7 @@ jobs:
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
         goversion: "1.14"
-        binary_name: "ghafs_${{ env.REF }}"
+        binary_name: "ghafs"
+        ldflags: "-s -w"
+      env:
+        CGO_ENABLED: "0"
