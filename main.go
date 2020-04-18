@@ -19,11 +19,15 @@ type args struct {
 	Owner       string `arg:"positional,required"`
 	Repo        string `arg:"positional,required"`
 	AccessToken string `arg:"--token" help:"GitHub access token for authorization"`
-	AllowOther  bool   `arg:"--allow-other" help:"Use FUSE allow_other mode (allow_root doesn't work, so not available)"`
+	AllowOther  bool   `arg:"--allow-other" help:"use FUSE allow_other mode (allow_root doesn't work, so not available)"`
 }
 
 func (args) Description() string {
 	return "GitHub Release Assets FUSE CLI"
+}
+
+func (args) Version() string {
+	return "ghafs 0.1.0"
 }
 
 func main() {
