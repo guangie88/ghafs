@@ -73,7 +73,7 @@ func main() {
 	defer c.Close()
 
 	// Prepare to pass around the token via reference
-	err = fs.Serve(c, NewGhaFS(mgmt, &args.AccessToken))
+	err = fs.Serve(c, newGhaFS(mgmt, &args.AccessToken))
 	if err != nil {
 		log.Fatal(err)
 	}
