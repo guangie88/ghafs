@@ -7,6 +7,10 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
+// PageLimit GitHub only allows up to 100 per page
+// https://developer.github.com/v3/#pagination
+const PageLimit = 100
+
 // GhContext contains the necessary inputs to invoke the Gitub library
 type GhContext struct {
 	ctx    context.Context
@@ -75,10 +79,34 @@ func makeAssetsWrap(ghc *GhContext, release *github.RepositoryRelease) *AssetsWr
 	return w
 }
 
+func loopListReleases(w *ReleasesWrap) ([]*github.RepositoryRelease, error) {
+	var releases []*github.RepositoryRelease
+
+	// Page offset starts from 1
+	for i := 1; ; i++ {
+		partialReleases, rsp, err := w.ghc.client.Repositories.ListReleases(
+			w.ghc.ctx,
+			w.ghc.owner,
+			w.ghc.repo,
+			&github.ListOptions{Page: i, PerPage: PageLimit})
+
+		if err != nil {
+			return nil, err
+		}
+
+		releases = append(releases, partialReleases...)
+
+		if i >= rsp.LastPage {
+			break
+		}
+	}
+
+	return releases, nil
+}
+
 // refreshImpl to be only internally only, to be used by mutex wrapping methods
-func (w ReleasesWrap) refreshImpl() (map[string]*Release, error) {
-	releases, _, err := w.ghc.client.Repositories.ListReleases(
-		w.ghc.ctx, w.ghc.owner, w.ghc.repo, nil)
+func (w *ReleasesWrap) refreshImpl() (map[string]*Release, error) {
+	releases, err := loopListReleases(w)
 
 	if err != nil {
 		return nil, err
@@ -91,13 +119,13 @@ func (w ReleasesWrap) refreshImpl() (map[string]*Release, error) {
 	return w.tagReleases, nil
 }
 
-func (w ReleasesWrap) refresh() (map[string]*Release, error) {
+func (w *ReleasesWrap) refresh() (map[string]*Release, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 	return w.refreshImpl()
 }
 
-func (w ReleasesWrap) get() (map[string]*Release, error) {
+func (w *ReleasesWrap) get() (map[string]*Release, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 
@@ -108,14 +136,35 @@ func (w ReleasesWrap) get() (map[string]*Release, error) {
 	return w.tagReleases, nil
 }
 
+func loopListReleaseAssets(w *AssetsWrap) ([]*github.ReleaseAsset, error) {
+	var assets []*github.ReleaseAsset
+
+	// Page offset starts from 1
+	for i := 1; ; i++ {
+		partialAssets, rsp, err := w.ghc.client.Repositories.ListReleaseAssets(
+			w.ghc.ctx,
+			w.ghc.owner,
+			w.ghc.repo,
+			w.release.GetID(),
+			&github.ListOptions{Page: i, PerPage: PageLimit})
+
+		if err != nil {
+			return nil, err
+		}
+
+		assets = append(assets, partialAssets...)
+
+		if i >= rsp.LastPage {
+			break
+		}
+	}
+
+	return assets, nil
+}
+
 // refreshImpl to be only internally only, to be used by mutex wrapping methods
-func (w AssetsWrap) refreshImpl() ([]*github.ReleaseAsset, error) {
-	assets, _, err := w.ghc.client.Repositories.ListReleaseAssets(
-		w.ghc.ctx,
-		w.ghc.owner,
-		w.ghc.repo,
-		w.release.GetID(),
-		nil)
+func (w *AssetsWrap) refreshImpl() ([]*github.ReleaseAsset, error) {
+	assets, err := loopListReleaseAssets(w)
 
 	if err != nil {
 		return nil, err
@@ -125,13 +174,13 @@ func (w AssetsWrap) refreshImpl() ([]*github.ReleaseAsset, error) {
 	return w.assets, nil
 }
 
-func (w AssetsWrap) refresh() ([]*github.ReleaseAsset, error) {
+func (w *AssetsWrap) refresh() ([]*github.ReleaseAsset, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 	return w.refreshImpl()
 }
 
-func (w AssetsWrap) get() ([]*github.ReleaseAsset, error) {
+func (w *AssetsWrap) get() ([]*github.ReleaseAsset, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 
