@@ -27,7 +27,7 @@ func (args) Description() string {
 }
 
 func (args) Version() string {
-	return "ghafs 0.1.0"
+	return "ghafs 0.1.1"
 }
 
 func main() {
