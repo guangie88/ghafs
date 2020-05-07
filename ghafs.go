@@ -93,7 +93,7 @@ func (t tagDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (t tagDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	assets, err := t.assets.refresh()
+	assets, err := t.assets.get()
 
 	if err != nil {
 		return nil, err
