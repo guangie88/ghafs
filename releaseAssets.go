@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/google/go-github/v28/github"
 )
@@ -10,6 +11,10 @@ import (
 // PageLimit GitHub only allows up to 100 per page
 // https://developer.github.com/v3/#pagination
 const PageLimit = 100
+
+// LastUpdatedThreshold sets the period threshold to allow the next update to
+// the items in seconds
+const LastUpdatedThreshold = 30 * time.Second
 
 // GhContext contains the necessary inputs to invoke the Gitub library
 type GhContext struct {
@@ -31,6 +36,7 @@ type ReleasesWrap struct {
 	ghc *GhContext
 
 	tagReleases map[string]*Release
+	lastUpdated time.Time
 	m           sync.Mutex
 }
 
@@ -48,8 +54,9 @@ type AssetsWrap struct {
 	ghc     *GhContext
 	release *github.RepositoryRelease
 
-	assets []*github.ReleaseAsset
-	m      sync.Mutex
+	assets      []*github.ReleaseAsset
+	lastUpdated time.Time
+	m           sync.Mutex
 }
 
 func makeGhContext(ctx context.Context, client *github.Client, owner string, repo string) *GhContext {
@@ -64,6 +71,7 @@ func makeReleasesWrap(ghc *GhContext) *ReleasesWrap {
 	w := &ReleasesWrap{}
 	w.ghc = ghc
 	w.tagReleases = make(map[string]*Release)
+	w.lastUpdated = time.Time{} // Zero-ed time
 	return w
 }
 
@@ -76,6 +84,7 @@ func makeAssetsWrap(ghc *GhContext, release *github.RepositoryRelease) *AssetsWr
 	w.ghc = ghc
 	w.release = release
 	w.assets = []*github.ReleaseAsset{}
+	w.lastUpdated = time.Time{} // Zero-ed time
 	return w
 }
 
@@ -106,14 +115,21 @@ func loopListReleases(w *ReleasesWrap) ([]*github.RepositoryRelease, error) {
 
 // refreshImpl to be only internally only, to be used by mutex wrapping methods
 func (w *ReleasesWrap) refreshImpl() (map[string]*Release, error) {
-	releases, err := loopListReleases(w)
+	timeNow := time.Now()
 
-	if err != nil {
-		return nil, err
-	}
+	// Adhere to the update threshold
+	if w.lastUpdated.Add(LastUpdatedThreshold).Before(timeNow) {
+		releases, err := loopListReleases(w)
 
-	for _, release := range releases {
-		w.tagReleases[release.GetTagName()] = makeRelease(w.ghc, release)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, release := range releases {
+			w.tagReleases[release.GetTagName()] = makeRelease(w.ghc, release)
+		}
+
+		w.lastUpdated = timeNow
 	}
 
 	return w.tagReleases, nil
@@ -164,13 +180,20 @@ func loopListReleaseAssets(w *AssetsWrap) ([]*github.ReleaseAsset, error) {
 
 // refreshImpl to be only internally only, to be used by mutex wrapping methods
 func (w *AssetsWrap) refreshImpl() ([]*github.ReleaseAsset, error) {
-	assets, err := loopListReleaseAssets(w)
+	timeNow := time.Now()
 
-	if err != nil {
-		return nil, err
+	// Adhere to the update threshold
+	if w.lastUpdated.Add(LastUpdatedThreshold).Before(timeNow) {
+		assets, err := loopListReleaseAssets(w)
+
+		if err != nil {
+			return nil, err
+		}
+
+		w.assets = assets
+		w.lastUpdated = timeNow
 	}
 
-	w.assets = assets
 	return w.assets, nil
 }
 
