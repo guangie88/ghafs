@@ -12,16 +12,13 @@ import (
 // https://developer.github.com/v3/#pagination
 const PageLimit = 100
 
-// LastUpdatedThreshold sets the period threshold to allow the next update to
-// the items in seconds
-const LastUpdatedThreshold = 30 * time.Second
-
 // GhContext contains the necessary inputs to invoke the Gitub library
 type GhContext struct {
-	ctx    context.Context
-	client *github.Client
-	owner  string
-	repo   string
+	ctx              context.Context
+	client           *github.Client
+	owner            string
+	repo             string
+	refreshThreshold time.Duration
 }
 
 // ReleaseMgmt forms the root level to be able to generate the entire release
@@ -59,8 +56,8 @@ type AssetsWrap struct {
 	m           sync.Mutex
 }
 
-func makeGhContext(ctx context.Context, client *github.Client, owner string, repo string) *GhContext {
-	return &GhContext{ctx, client, owner, repo}
+func makeGhContext(ctx context.Context, client *github.Client, owner string, repo string, refreshThreshold time.Duration) *GhContext {
+	return &GhContext{ctx, client, owner, repo, refreshThreshold}
 }
 
 func makeReleaseMgmt(ghc *GhContext) *ReleaseMgmt {
@@ -118,7 +115,7 @@ func (w *ReleasesWrap) refreshImpl() (map[string]*Release, error) {
 	timeNow := time.Now()
 
 	// Adhere to the update threshold
-	if w.lastUpdated.Add(LastUpdatedThreshold).Before(timeNow) {
+	if w.lastUpdated.Add(w.ghc.refreshThreshold).Before(timeNow) {
 		releases, err := loopListReleases(w)
 
 		if err != nil {
@@ -139,17 +136,6 @@ func (w *ReleasesWrap) refresh() (map[string]*Release, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 	return w.refreshImpl()
-}
-
-func (w *ReleasesWrap) get() (map[string]*Release, error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-
-	if len(w.tagReleases) == 0 {
-		return w.refreshImpl()
-	}
-
-	return w.tagReleases, nil
 }
 
 func loopListReleaseAssets(w *AssetsWrap) ([]*github.ReleaseAsset, error) {
@@ -183,7 +169,7 @@ func (w *AssetsWrap) refreshImpl() ([]*github.ReleaseAsset, error) {
 	timeNow := time.Now()
 
 	// Adhere to the update threshold
-	if w.lastUpdated.Add(LastUpdatedThreshold).Before(timeNow) {
+	if w.lastUpdated.Add(w.ghc.refreshThreshold).Before(timeNow) {
 		assets, err := loopListReleaseAssets(w)
 
 		if err != nil {
@@ -201,15 +187,4 @@ func (w *AssetsWrap) refresh() ([]*github.ReleaseAsset, error) {
 	w.m.Lock()
 	defer w.m.Unlock()
 	return w.refreshImpl()
-}
-
-func (w *AssetsWrap) get() ([]*github.ReleaseAsset, error) {
-	w.m.Lock()
-	defer w.m.Unlock()
-
-	if len(w.assets) == 0 {
-		return w.refreshImpl()
-	}
-
-	return w.assets, nil
 }
