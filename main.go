@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/alexflint/go-arg"
 
@@ -15,11 +16,12 @@ import (
 )
 
 type args struct {
-	Mountpoint  string `arg:"positional,required"`
-	Owner       string `arg:"positional,required"`
-	Repo        string `arg:"positional,required"`
-	AccessToken string `arg:"--token" help:"GitHub access token for authorization"`
-	AllowOther  bool   `arg:"--allow-other" help:"use FUSE allow_other mode (allow_root doesn't work, so not available)"`
+	Mountpoint       string `arg:"positional,required"`
+	Owner            string `arg:"positional,required"`
+	Repo             string `arg:"positional,required"`
+	AccessToken      string `arg:"--token" help:"GitHub access token for authorization"`
+	AllowOther       bool   `arg:"--allow-other" help:"use FUSE allow_other mode (allow_root doesn't work, so not available)"`
+	RefreshThreshold uint32 `arg:"--refresh" default:"30" help:"number of seconds that must elapsed before subsequent assets refresh can occur"`
 }
 
 func (args) Description() string {
@@ -27,7 +29,7 @@ func (args) Description() string {
 }
 
 func (args) Version() string {
-	return "ghafs 0.1.1"
+	return "ghafs 0.1.2"
 }
 
 func main() {
@@ -46,7 +48,7 @@ func main() {
 	}
 
 	client := github.NewClient(tc)
-	mgmt := makeReleaseMgmt(makeGhContext(ctx, client, args.Owner, args.Repo))
+	mgmt := makeReleaseMgmt(makeGhContext(ctx, client, args.Owner, args.Repo, time.Duration(args.RefreshThreshold)*time.Second))
 
 	mountOptions := []fuse.MountOption{
 		fuse.FSName("ghafs"),

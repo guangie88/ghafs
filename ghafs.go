@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -61,7 +62,7 @@ func (r root) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (r root) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	releases, err := r.mgmt.releases.get()
+	releases, err := r.mgmt.releases.refresh()
 
 	if err != nil {
 		return nil, err
@@ -93,7 +94,7 @@ func (t tagDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (t tagDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	assets, err := t.assets.get()
+	assets, err := t.assets.refresh()
 
 	if err != nil {
 		return nil, err
@@ -126,6 +127,10 @@ func (f assetFile) ReadAll(ctx context.Context) ([]byte, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Status Code: %v, message: %v", resp.StatusCode, resp.Status)
 	}
 
 	log.Printf("Asset URL: %v, Content-Length: %v", f.asset.GetURL(), resp.ContentLength)
