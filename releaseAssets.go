@@ -25,6 +25,7 @@ type GhContext struct {
 // assets content with the given GitHub context
 type ReleaseMgmt struct {
 	ghc      *GhContext
+	repo     *github.Repository
 	releases *ReleasesWrap
 }
 
@@ -60,8 +61,14 @@ func makeGhContext(ctx context.Context, client *github.Client, owner string, rep
 	return &GhContext{ctx, client, owner, repo, refreshThreshold}
 }
 
-func makeReleaseMgmt(ghc *GhContext) *ReleaseMgmt {
-	return &ReleaseMgmt{ghc, makeReleasesWrap(ghc)}
+func makeReleaseMgmt(ghc *GhContext) (*ReleaseMgmt, error) {
+	repo, _, err := ghc.client.Repositories.Get(ghc.ctx, ghc.owner, ghc.repo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ReleaseMgmt{ghc, repo, makeReleasesWrap(ghc)}, nil
 }
 
 func makeReleasesWrap(ghc *GhContext) *ReleasesWrap {

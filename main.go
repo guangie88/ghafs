@@ -29,7 +29,7 @@ func (args) Description() string {
 }
 
 func (args) Version() string {
-	return "ghafs 0.1.2"
+	return "ghafs 0.1.3"
 }
 
 func main() {
@@ -48,7 +48,11 @@ func main() {
 	}
 
 	client := github.NewClient(tc)
-	mgmt := makeReleaseMgmt(makeGhContext(ctx, client, args.Owner, args.Repo, time.Duration(args.RefreshThreshold)*time.Second))
+	mgmt, err := makeReleaseMgmt(makeGhContext(ctx, client, args.Owner, args.Repo, time.Duration(args.RefreshThreshold)*time.Second))
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mountOptions := []fuse.MountOption{
 		fuse.FSName("ghafs"),

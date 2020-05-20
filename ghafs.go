@@ -45,9 +45,17 @@ func (g ghaFS) Root() (fs.Node, error) {
 	return root{mgmt: g.mgmt, token: g.token}, nil
 }
 
-func (root) Attr(ctx context.Context, a *fuse.Attr) error {
+func (r root) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = 1
 	a.Mode = os.ModeDir | 0775
+
+	cmaTime := r.mgmt.repo.GetUpdatedAt().Time
+	a.Ctime = cmaTime
+	a.Mtime = cmaTime
+	a.Atime = cmaTime
+
+	a.Crtime = r.mgmt.repo.GetCreatedAt().Time
+
 	return nil
 }
 
@@ -80,6 +88,15 @@ func (r root) Lookup(ctx context.Context, name string) (fs.Node, error) {
 func (t tagDir) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = uint64(t.assets.release.GetID())
 	a.Mode = os.ModeDir | 0775
+
+	// GitHub release only keeps track of Created (tag creation) and Published (release published) timestamps
+	// Since we are not interested in the tag, and only in the release, we use the published timestamp
+	cmaTime := t.assets.release.GetPublishedAt().Time
+	a.Ctime = cmaTime
+	a.Mtime = cmaTime
+	a.Atime = cmaTime
+	a.Crtime = cmaTime
+
 	return nil
 }
 
@@ -112,6 +129,18 @@ func (f assetFile) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Inode = uint64(f.asset.GetID())
 	a.Mode = 0664
 	a.Size = uint64(f.asset.GetSize())
+
+	// Ctime -> file meta change time, e.g. change owner, change perms
+	// Mtime -> file content modification time
+	// Atime -> file access time, since GitHub does not track this, we just use the updated time
+	cmaTime := f.asset.GetUpdatedAt().Time
+	a.Ctime = cmaTime
+	a.Mtime = cmaTime
+	a.Atime = cmaTime
+
+	// Crtime -> file created time
+	a.Crtime = f.asset.GetCreatedAt().Time
+
 	return nil
 }
 
